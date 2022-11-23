@@ -30,7 +30,12 @@ def user_input_features():
 # Uses st.experimental_singleton to only run once.
 @st.experimental_singleton
 def init_connection():         
-        client = MongoClient('mongodb://root:example@mongodb:27017/')
+        # while working in docker, use this URI
+        # client = MongoClient('mongodb://root:example@mongodb:27017/')
+
+        # else use this
+        client = MongoClient('localhost', 27017)
+
         return client
 
 # Pull data from the collection.

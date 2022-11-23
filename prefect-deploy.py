@@ -10,21 +10,23 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks.model_summary import ModelSummary
 from sklearn.metrics import mean_squared_error
 from collections import namedtuple
+import matplotlib as mpl
+
 import matplotlib.pyplot as plt
 from matplotlib import lines, colors, ticker
 import seaborn as sns
 import xarray
 import mlflow
 from prefect import flow, task
+from prefect.deployments import Deployment
+from prefect.orion.schemas.schedules import IntervalSchedule, RRuleSchedule, CronSchedule
 import streamlit as st
-# TODO Fix these imports
-from prefect.deployments import DeploymentSpec
-from prefect.flow_runners import SubprocessFlowRunner
-from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.task_runners import SequentialTaskRunner
+from Preprocessing import pre_processing
 from pymongo import MongoClient, errors
-#from API import download_raw_data
+from API import download_raw_data
+from datetime import date
 from datetime import datetime, timedelta
+
 sys.path.append('./2020-03-gfz-remote-sensing')
 sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003')
 sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003/training')
@@ -34,36 +36,9 @@ from cygnssnet import ImageNet, DenseNet, CyGNSSNet, CyGNSSDataModule, CyGNSSDat
 
 @task
 def download_data():
-    download_data_date = datetime.date.today() - datetime.timedelta(days=10)
+    download_data_date = date.today() - timedelta(days=11)
     download_raw_data(year = download_data_date.year, month = download_data_date.month, day = download_data_date.day)
     
-#@task
-#def write_data(client):
-#        data_1 = {
-#        "rmse": 3.1, 
-#        "event_date":  datetime.datetime(2022, 8, 10),
-#        "image_url": "https://www.dkrz.de/en/about-en/aufgaben/dkrz-and-climate-research/@@images/image/large"
-#        }
-
-#        data_2 = {
-#        "rmse": 2.1,         
-#        "event_date":  datetime.datetime(2022, 8, 9),
-#        "image_url": "https://www.dkrz.de/en/about-en/aufgaben/dkrz-and-climate-research/@@images/image/large"
-#        }
-
-#        data_3 = {
-#        "rmse": 3.2,         
-#        "event_date":  datetime.datetime(2022, 8, 8),
-#        "image_url": "https://www.dkrz.de/en/about-en/aufgaben/dkrz-and-climate-research/@@images/image/large"
-#        }
-
-
-#        cygnss_collection = client["cygnss"].cygnss_collection
-
-#        cygnss_collection = cygnss_collection.insert_many([data_1, data_2, data_3])
-
-#        print(f"Multiple tutorials: {cygnss_collection.inserted_ids}")
-
 @task
 def get_data(client):        
         cygnss = client.cygnss                        
@@ -83,42 +58,20 @@ def save_to_db(domain, port, y_pred, rmse, date, all_rmse):
     # use a try-except indentation to catch MongoClient() errors
     try:
         print('entering mongo db connection')
-        
-     
-        
-        client = MongoClient(
-        host = [ str(domain) + ":" + str(port) ],
-        serverSelectionTimeoutMS = 3000, # 3 second timeout
-        username = "root",
-        password = "example",
-    )
+    
+    ##  Un-comment, while working in docker
+        # client = MongoClient('mongodb://root:example@mongodb:27017/')
 
-       # uncomment and if you wanna clear out the data
+        
+        client = MongoClient('localhost', 27017)
+
+       #if you wanna clear out the data
         client.drop_database('cygnss')
 
         # print the version of MongoDB server if connection successful
         print ("server version:", client.server_info()["version"])
 
-        # data_1 = {
-        # "rmse": 3.1, 
-        # "event_date":  datetime(2022, 8, 10),
-        # "image_url": "https://www.dkrz.de/en/about-en/aufgaben/dkrz-and-climate-research/@@images/image/large"
-        # }
-
-        # data_2 = {
-        # "rmse": 2.1,         
-        # "event_date":  datetime(2022, 8, 9),
-        # "image_url": "https://www.dkrz.de/en/about-en/aufgaben/dkrz-and-climate-research/@@images/image/large"
-        # }
-
-        # data_3 = {
-        # "rmse": 3.2,         
-        # "event_date":  datetime(2022, 8, 8),
-        # "image_url": "https://www.dkrz.de/en/about-en/aufgaben/dkrz-and-climate-research/@@images/image/large"
-        # }
-
-
-        data_4 = {
+        data_1 = {
                 "rmse": rmse.tolist(),
                 "all_rmse": all_rmse.tolist(),
                 "event_date": date,
@@ -129,7 +82,7 @@ def save_to_db(domain, port, y_pred, rmse, date, all_rmse):
 
         cygnss_collection = client["cygnss"].cygnss_collection
 
-        cygnss_collection = cygnss_collection.insert_many([data_4])
+        cygnss_collection = cygnss_collection.insert_many([data_1])
 
         print(f"Multiple tutorials: {cygnss_collection.inserted_ids}")
 
@@ -148,6 +101,7 @@ def get_hyper_params(model_path, model, data_path):
     checkpoint['hyper_parameters']["data"] = data_path
     args = namedtuple("ObjectName", checkpoint['hyper_parameters'].keys())\
             (*checkpoint['hyper_parameters'].values())
+    
     return args 
 
 @task
@@ -234,37 +188,44 @@ def make_histogram(y_true, y_pred):
     ax.set_xlabel('ERA5 wind speed (m/s)')
     plt.savefig(f'{os.path.dirname(__file__)}/plots/histo.png')
 
-@flow(task_runner=SequentialTaskRunner())
-def main():
+@flow
+def start_pipeline():
+    # Switching to the non-GUI backend to resolve prefect-matplot issue which leads to segmentation fault while running
+    mpl.use('Agg')
 
+
+    # Takes time, so commented out. Currently running on a fixed data.
     # Download data for the past 10th day from today, today - 10th day
-    #download_data()
-    
-    # TODO
-    # pre_process()
+    # download_data()
+        
+   
+    date = datetime(2022, 9, 10)
 
-    # TODO: get date from preprocessing
-    now = datetime.now()
-    date = datetime(now.year, now.month, now.day) - timedelta(days=10)
-    #date = datetime.datetime(2022, 9, 10)
+    # Un comment, if we are downloading fresh data
+    # now = datetime.now()
+    # date = datetime(now.year, now.month, now.day) - timedelta(days=10)
+
     
+    # Takes time, so commented out, preprocess the downloaded data
+    #  pre_processing(date.year, date.month, date.day)
+
+    # Model and data path    
     model_path = './2022-cygnss-deployment/'\
             'cygnss_trained_model/ygambdos_yykDM/checkpoint'
     model = 'cygnssnet-epoch=0.ckpt'
     data_path = './2022-cygnss-deployment/small_data/' #'../data' # TODO, change the path outside of code, in a separete folder
     h5_file = h5py.File(os.path.join(data_path, 'test_data.h5'), 'r', rdcc_nbytes=0)
 
-    mlflow.set_tracking_uri("sqlite:///mlruns.db") # TODO: change this to other db
-    mlflow.set_experiment("cygnss")
-
+    # mlflow.set_tracking_uri("sqlite:///mlruns.db") # TODO: change this to other db
  
-    # get hyper parameters 
-    args = get_hyper_params(model_path, model, data_path).result()
+    # get hyper parameters     
+    args = get_hyper_params(model_path, model, data_path)    
 
     cdm = CyGNSSDataModule(args)
     cdm.setup(stage='test')
     input_shapes = cdm.get_input_shapes(stage='test')
-    backbone = get_backbone(args, input_shapes).result()
+    # backbone = get_backbone(args, input_shapes).result()
+    backbone = get_backbone(args, input_shapes)
   
     # load model
     cygnss_model = CyGNSSNet.load_from_checkpoint(os.path.join(model_path, model),
@@ -274,8 +235,8 @@ def main():
     cygnss_model.eval()
 
     test_loader = cdm.test_dataloader()    
-    # make predictions
-    y_pred = make_predictions(test_loader, cygnss_model).result()
+    # make predictions    
+    y_pred = make_predictions(test_loader, cygnss_model)
     
     # get true labels
     dataset = CyGNSSDataset('test', args)
@@ -283,9 +244,14 @@ def main():
 
     # calculate rmse
     all_rmse = rmse_bins(y, y_pred)
-    with mlflow.start_run():
-        rmse = mean_squared_error(y, y_pred, squared=False)
+    
+    mlflow.set_experiment("/cygnss")
+
+
+    with mlflow.start_run():        
+        rmse = mean_squared_error(y, y_pred, squared=False)        
         mlflow.log_metric('rmse', rmse)
+        mlflow.log_artifacts(f'{os.path.dirname(__file__)}/plots/')        
    
     # make plots
     make_scatterplot(y, y_pred)
@@ -296,15 +262,21 @@ def main():
     PORT = 27017
     
     # Save results to the mongo database
-    save_to_db(domain=DOMAIN, port=PORT, y_pred=y_pred, rmse=rmse, date=date, all_rmse=all_rmse)
+    save_to_db(domain=DOMAIN, port=PORT, y_pred=y_pred, rmse=rmse, date=date, all_rmse=all_rmse)    
 
-main()
 
-#DeploymentSpec(
-#    flow=main,
-#    name="model_inference",
-#    schedule=IntervalSchedule(interval=timedelta(minutes=2)),
-#    flow_runner=SubprocessFlowRunner(),
-#    tags=["cygnss"]
-#)
 
+
+
+if __name__ == "__main__":
+
+    deployment = Deployment.build_from_flow(
+        schedule = IntervalSchedule(interval=timedelta(minutes=3)),
+        flow=start_pipeline,
+        name="start_pipeline", 
+        version=1, 
+        work_queue_name="demo")
+        
+    # deployment.apply()
+    
+    start_pipeline()

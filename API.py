@@ -34,7 +34,7 @@ def download_raw_data(year  = 2021, month = 3, day   = 17):
     print(f'--end-date   {end_date}')
     
     # Download the data
-    # os.system(f"python ./2022-cygnss-deployment/data-subscriber/subscriber/podaac_data_downloader.py  -c CYGNSS_L1_V3.1 -d {raw_data_dir} --start-date {start_date} --end-date {end_date}")    
+    os.system(f"python ./2022-cygnss-deployment/data-subscriber/subscriber/podaac_data_downloader.py  -c CYGNSS_L1_V3.1 -d {raw_data_dir} --start-date {start_date} --end-date {end_date}")
    
     # if we want to use sub process in place of os.system above
     # subprocess.call(['python', './2022-cygnss-deployment/data-subscriber/subscriber/podaac_data_downloader.py', '-c ' + raw_data_dir, '--start-date ' + start_date, '--end-date ' + end_date])
@@ -69,9 +69,7 @@ def download_raw_data(year  = 2021, month = 3, day   = 17):
         },
         './2022-cygnss-deployment/raw_data/download.nc')
 
-
-
-    ds_era5 = xr.open_dataset('download.nc')
+    ds_era5 = xr.open_dataset('./2022-cygnss-deployment/raw_data/download.nc')
     ds_era5.close()
 
 

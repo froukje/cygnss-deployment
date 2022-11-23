@@ -37,19 +37,20 @@ services:
     ports:
       - "8501:8501"
       - "5000:5000"   
-    command: bash -c "python cygnss-deployment/prefect-deploy.py  && streamlit run cygnss-deployment/dashboard.py && mlflow ui -p 5000"      
-    #command: bash -c "streamlit run cygnss-deployment/dashboard.py && mlflow ui -p 5000" 
+      - "4200:4200"
+    # command: bash -c "python cygnss-deployment/prefect-deploy.py && streamlit run cygnss-deployment/dashboard.py"
+    command: bash -c "python cygnss-deployment/prefect-deploy.py && mlflow ui --host 0.0.0.0"
     depends_on:
     - mongodb
     networks:
       - backend
 
-
-  # If needed, uncomment below code block 
-#  prefect:  
-#    image: prefecthq/prefect
-#    ports:
-#      - "8000:8000"      
+# # If needed, uncomment below code block 
+#   prefect:  
+#     image: prefecthq/prefect
+#     ports:
+#       - "5000:5000"      
+#     command: bash -c "mlflow ui"
   
 
     
