@@ -16,7 +16,7 @@
          -   Activate the conda env, `conda activate <ENV_NAME>`
          -   Run: `prefect agent start -q demo`
 -   New terminal: 
-     -   cd  <navigate to Parent folder of cygnss-deployment> 
+     -   cd  `<navigate to Parent folder of cygnss-deployment> `
      -   Run:  python cygnss-deployment/prefect-deploy.py
      -   New terminal: mlflow ui 
 
