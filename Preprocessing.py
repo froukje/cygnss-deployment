@@ -9,21 +9,15 @@ import datetime
 from datetime import date
 from datetime import timedelta
 sys.path.append('./cygnss-deployment/externals/gfz_cygnss/')
-
 import argparse 
 from gfz_202003.preprocessing import preprocess as prep
-
-
-
 import numpy as np
 import h5py
 from matplotlib import pyplot as plt
 import seaborn as sns
-
 import xarray as xr
-
-
 import cdsapi
+from importlib import reload
 
 def pre_processing():
 
@@ -31,8 +25,8 @@ def pre_processing():
     dev_data_dir = '/home/harsh/Downloads/DKRZ/MLOps/2022-cygnss-deployment/dev_data'     
         
     now = datetime.datetime.now()
-    # date = datetime.datetime(now.year, now.month, now.day) - timedelta(days=12)
-    date = datetime.datetime(2022, 9, 10)
+    date = datetime.datetime(now.year, now.month, now.day) - timedelta(days=13)
+    # date = datetime.datetime(2022, 9, 10)
     year  = date.year
     month = date.month
     day   = date.day
@@ -41,7 +35,7 @@ def pre_processing():
     raw_data_sub = datetime.datetime.strptime(f"{year}-{month}-{day}", "%Y-%m-%d").strftime("%Y/%j")
 
     raw_data_dir = os.path.join(raw_data_root, raw_data_sub)
-    
+
     print(raw_data_dir)
 
 
@@ -52,22 +46,62 @@ def pre_processing():
     print(f'--start-date {start_date}')
     print(f'--end-date   {end_date}')
 
-    
+    era5_data = os.path.join(raw_data_dir, 'ERA5_windspeed.nc') 
+    cds = cdsapi.Client() 
+   
+    cds.retrieve(
+    'reanalysis-era5-single-levels',
+    {
+        'product_type': 'reanalysis',
+        'format': 'netcdf',
+        'variable': [
+            '10m_u_component_of_wind', '10m_v_component_of_wind',
+        ],
+        'year': year,
+        'month': month,
+        'day': day,
+        'time': [
+            '00:00', '01:00', '02:00',
+            '03:00', '04:00', '05:00',
+            '06:00', '07:00', '08:00',
+            '09:00', '10:00', '11:00',
+            '12:00', '13:00', '14:00',
+            '15:00', '16:00', '17:00',
+            '18:00', '19:00', '20:00',
+            '21:00', '22:00', '23:00'
+        ],
+        'area': [
+            40, -180, -40, 180,
+        ],
+    },
+    era5_data)
+
+    era5_ds = xr.open_dataset(era5_data)
+
+
+    for cygnss_file in os.listdir(raw_data_dir):
+        if cygnss_file.startswith('cyg') and cygnss_file.endswith('.nc'):
+            print(cygnss_file)
+            annotate_dataset(os.path.join(raw_data_dir, cygnss_file), era5_data, save_dataset=True)       
+
     dday = datetime.datetime.strptime(f"{year}-{month}-{day}", "%Y-%m-%d").strftime("%j") # need that later
+    
+    
+    reload(prep)
 
     args = argparse.Namespace(raw_data_dir='/work/ka1176/shared_data/2022-cygnss-deployment/raw_data/',
-                          output_dir=dev_data_dir,
-                          v_map=['brcs'],
-                          n_valid_days=0,
-                          n_test_days=1,
-                          n_processes=1,
-                          only_merge=False,
-                          use_land_data=False,
-                          is_ml_ops=True,
-                          version='v3.1',
-                          day=dday,
-                          year=year,
-                          reduce_mode='')
+                        output_dir=dev_data_dir,
+                        v_map=['brcs'],
+                        n_valid_days=0,
+                        n_test_days=1,
+                        n_processes=1,
+                        only_merge=False,
+                        use_land_data=False,
+                        is_ml_ops=True,
+                        version='v3',
+                        day=dday,
+                        year=year,
+                        reduce_mode='')
 
     prep.generate_input_data(args)
 
@@ -125,3 +159,6 @@ def annotate_dataset(cygnss_file, era5_file, save_dataset=False):
         
     return cygnss_ds
 
+
+
+pre_processing()

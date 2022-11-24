@@ -32,11 +32,11 @@ sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003')
 sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003/training')
 
 from cygnssnet import ImageNet, DenseNet, CyGNSSNet, CyGNSSDataModule, CyGNSSDataset
-
+mlflow.set_tracking_uri("sqlite:///mlruns.db")
 
 @task
 def download_data():
-    download_data_date = date.today() - timedelta(days=11)
+    download_data_date = date.today() - timedelta(days=13)
     download_raw_data(year = download_data_date.year, month = download_data_date.month, day = download_data_date.day)
     
 @task
@@ -202,12 +202,12 @@ def start_pipeline():
     date = datetime(2022, 9, 10)
 
     # Un comment, if we are downloading fresh data
-    # now = datetime.now()
-    # date = datetime(now.year, now.month, now.day) - timedelta(days=10)
+    now = datetime.now()
+    date = datetime(now.year, now.month, now.day) - timedelta(days=13)
 
     
     # Takes time, so commented out, preprocess the downloaded data
-    #  pre_processing(date.year, date.month, date.day)
+    pre_processing()
 
     # Model and data path    
     model_path = './2022-cygnss-deployment/'\
@@ -217,6 +217,7 @@ def start_pipeline():
     h5_file = h5py.File(os.path.join(data_path, 'test_data.h5'), 'r', rdcc_nbytes=0)
 
     # mlflow.set_tracking_uri("sqlite:///mlruns.db") # TODO: change this to other db
+    
  
     # get hyper parameters     
     args = get_hyper_params(model_path, model, data_path)    
@@ -270,12 +271,12 @@ def start_pipeline():
 
 if __name__ == "__main__":
 
-    deployment = Deployment.build_from_flow(
-        schedule = IntervalSchedule(interval=timedelta(minutes=3)),
-        flow=start_pipeline,
-        name="start_pipeline", 
-        version=1, 
-        work_queue_name="demo")
+    # deployment = Deployment.build_from_flow(
+    #     schedule = IntervalSchedule(interval=timedelta(minutes=3)),
+    #     flow=start_pipeline,
+    #     name="start_pipeline", 
+    #     version=1, 
+    #     work_queue_name="demo")
         
     # deployment.apply()
     

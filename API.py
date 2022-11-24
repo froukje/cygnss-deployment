@@ -9,6 +9,8 @@ import pandas as pd
 import os
 import sys
 import datetime
+from datetime import date
+from datetime import timedelta
 
 def download_raw_data(year  = 2021, month = 3, day   = 17):
     # # APIs
@@ -98,3 +100,6 @@ def download_raw_data(year  = 2021, month = 3, day   = 17):
 
     print('Fraction of ocean grid points:', globe_ocean_mask.sum() / len(globe_ocean_mask.flatten()))
 
+
+download_data_date = date.today() - timedelta(days=13)
+download_raw_data(year = download_data_date.year, month = download_data_date.month, day = download_data_date.day)
