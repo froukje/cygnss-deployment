@@ -4,7 +4,7 @@
  
 - Install mongo if not installed: https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
 - Open a terminal
-  - Start MongoDB: sudo service mongo start
+  - Start MongoDB: sudo service mongod start
   - If mongo.service not found
     -   Most probably unit mongodb.service is masked. Use following command to unmask it: sudo `systemctl unmask mongod`
     -   and re-run: `sudo service mongod start`
@@ -19,6 +19,9 @@
      -   cd  `<navigate to Parent folder of cygnss-deployment> `
      -   Run:  python cygnss-deployment/prefect-deploy.py
      -   New terminal: mlflow ui 
+
+-  New terminal
+  - streamlit run dashboard.py, access 13th day before current date, in the date selector, to see the results
 
 
 	
