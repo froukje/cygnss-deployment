@@ -32,7 +32,7 @@ sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003')
 sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003/training')
 
 from cygnssnet import ImageNet, DenseNet, CyGNSSNet, CyGNSSDataModule, CyGNSSDataset
-mlflow.set_tracking_uri("sqlite:///mlruns.db")
+# mlflow.set_tracking_uri("sqlite:///mlruns.db")
 
 @task
 def download_data():
@@ -207,7 +207,7 @@ def start_pipeline():
 
     
     # Takes time, so commented out, preprocess the downloaded data
-    pre_processing()
+    # pre_processing()
 
     # Model and data path    
     model_path = './2022-cygnss-deployment/'\
@@ -246,13 +246,13 @@ def start_pipeline():
     # calculate rmse
     all_rmse = rmse_bins(y, y_pred)
     
-    mlflow.set_experiment("/cygnss")
+    # mlflow.set_experiment("/cygnss")
 
 
-    with mlflow.start_run():        
-        rmse = mean_squared_error(y, y_pred, squared=False)        
-        mlflow.log_metric('rmse', rmse)
-        mlflow.log_artifacts(f'{os.path.dirname(__file__)}/plots/')        
+    # with mlflow.start_run():        
+    #     rmse = mean_squared_error(y, y_pred, squared=False)        
+    #     mlflow.log_metric('rmse', rmse)
+    #     mlflow.log_artifacts(f'{os.path.dirname(__file__)}/plots/')        
    
     # make plots
     make_scatterplot(y, y_pred)
@@ -264,8 +264,6 @@ def start_pipeline():
     
     # Save results to the mongo database
     save_to_db(domain=DOMAIN, port=PORT, y_pred=y_pred, rmse=rmse, date=date, all_rmse=all_rmse)    
-
-
 
 
 

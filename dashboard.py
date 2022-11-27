@@ -70,12 +70,14 @@ st.subheader('Results')
 # Display results.
 if len(items) == 0:
         st.write(f" Data does not exist for this date. Choose a different date please!")
+
 if option == 'RMSE':
     y_bins = [4, 8, 12, 16, 20, 100]
-    for item in items: # @harsh can this be more than 1 item?
+    for item in items: # 
         st.write(f"RMSE is: {item['rmse']:.4f} m/s ")
         for rmse, yb in zip(item['all_rmse'], y_bins):
             st.write(f'RMSE for windspeed up to {yb:.4f} m/s: {rmse} m/s')
+
 if option == 'Visualization':
     for item in items:
     #response = requests.get(item['image_url'])

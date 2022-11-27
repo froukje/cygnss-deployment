@@ -28,6 +28,21 @@ services:
     networks:
       - backend
 
+  ### Prefect Database
+  database:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=orion
+    expose:
+      - 5432
+    volumes: 
+      - db:/var/lib/postgresql/data
+    networks:
+     - backend
+  
  
   streamlit:    
     build: .
@@ -39,18 +54,43 @@ services:
       - "5000:5000"   
       - "4200:4200"
     # command: bash -c "python cygnss-deployment/prefect-deploy.py && streamlit run cygnss-deployment/dashboard.py"
-    command: bash -c "python cygnss-deployment/prefect-deploy.py && mlflow ui --host 0.0.0.0"
+    command: bash -c "python cygnss-deployment/prefect-deploy.py && mlflow ui"
     depends_on:
     - mongodb
     networks:
       - backend
 
-# # If needed, uncomment below code block 
-#   prefect:  
-#     image: prefecthq/prefect
-#     ports:
-#       - "5000:5000"      
-#     command: bash -c "mlflow ui"
+
+ ### Prefect Orion API
+  orion:
+    image: prefecthq/prefect:2.6.8-python3.11    
+    volumes:
+      - prefect:/root/.prefect
+    entrypoint: ["prefect", "orion", "start"]
+    environment:
+      - PREFECT_ORION_API_HOST=0.0.0.0
+      - PREFECT_ORION_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@database:5432/orion
+    ports:
+      - 4200:4200
+    depends_on:
+      - database    
+    networks:
+      backend
+
+ ## Prefect Agent
+
+  agent:
+    image: prefecthq/prefect:2.6.8-python3.11
+    restart: always
+    entrypoint: ["prefect", "agent", "start", "-q", "demo"]
+    volumes:
+      - "./flows:/root/flows"
+    environment:
+      - PREFECT_API_URL=http://orion:4200/api
+    depends_on:
+      - orion    
+    networks:
+      backend
   
 
     
