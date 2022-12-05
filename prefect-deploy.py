@@ -32,7 +32,6 @@ sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003')
 sys.path.append('./2020-03-gfz-remote-sensing/gfz_202003/training')
 
 from cygnssnet import ImageNet, DenseNet, CyGNSSNet, CyGNSSDataModule, CyGNSSDataset
-# mlflow.set_tracking_uri("sqlite:///mlruns.db")
 
 @task
 def download_data():
@@ -213,30 +212,25 @@ def start_pipeline():
     model_path = './2022-cygnss-deployment/'\
             'cygnss_trained_model/ygambdos_yykDM/checkpoint'
     model = 'cygnssnet-epoch=0.ckpt'
-    data_path = './2022-cygnss-deployment/small_data/' #'../data' # TODO, change the path outside of code, in a separete folder
-    h5_file = h5py.File(os.path.join(data_path, 'test_data.h5'), 'r', rdcc_nbytes=0)
+    data_path = './2022-cygnss-deployment/small_data/' #'../data' # TODO, change the path outside of code, in a separete folder    
 
-    # mlflow.set_tracking_uri("sqlite:///mlruns.db") # TODO: change this to other db
-    
  
     # get hyper parameters     
     args = get_hyper_params(model_path, model, data_path)    
 
+    # Load model
     cdm = CyGNSSDataModule(args)
     cdm.setup(stage='test')
-    input_shapes = cdm.get_input_shapes(stage='test')
-    # backbone = get_backbone(args, input_shapes).result()
+    input_shapes = cdm.get_input_shapes(stage='test')    
     backbone = get_backbone(args, input_shapes)
-  
-    # load model
     cygnss_model = CyGNSSNet.load_from_checkpoint(os.path.join(model_path, model),
                                            map_location=torch.device('cpu'), 
                                            args=args, 
                                            backbone=backbone)
-    cygnss_model.eval()
 
-    test_loader = cdm.test_dataloader()    
     # make predictions    
+    cygnss_model.eval()
+    test_loader = cdm.test_dataloader()    
     y_pred = make_predictions(test_loader, cygnss_model)
     
     # get true labels
@@ -246,17 +240,19 @@ def start_pipeline():
     # calculate rmse
     all_rmse = rmse_bins(y, y_pred)
     
-    # mlflow.set_experiment("/cygnss")
-
-
-    # with mlflow.start_run():        
-    #     rmse = mean_squared_error(y, y_pred, squared=False)        
-    #     mlflow.log_metric('rmse', rmse)
-    #     mlflow.log_artifacts(f'{os.path.dirname(__file__)}/plots/')        
-   
-    # make plots
+     # make plots
     make_scatterplot(y, y_pred)
     make_histogram(y, y_pred)
+
+
+    # Log experiments to MLFLOW
+    mlflow.set_experiment("/cygnss")
+
+    with mlflow.start_run():        
+        rmse = mean_squared_error(y, y_pred, squared=False)        
+        mlflow.log_metric('rmse', rmse)
+        mlflow.log_artifacts(f'{os.path.dirname(__file__)}/plots/')        
+   
 
     # global variables for MongoDB host (default port is 27017)
     DOMAIN = 'mongodb'
@@ -266,16 +262,15 @@ def start_pipeline():
     save_to_db(domain=DOMAIN, port=PORT, y_pred=y_pred, rmse=rmse, date=date, all_rmse=all_rmse)    
 
 
-
 if __name__ == "__main__":
 
-    # deployment = Deployment.build_from_flow(
-    #     schedule = IntervalSchedule(interval=timedelta(minutes=3)),
-    #     flow=start_pipeline,
-    #     name="start_pipeline", 
-    #     version=1, 
-    #     work_queue_name="demo")
+    deployment = Deployment.build_from_flow(
+        schedule = IntervalSchedule(interval=timedelta(minutes=2)),
+        flow=start_pipeline,
+        name="start_pipeline", 
+        version=1, 
+        work_queue_name="demo")
         
-    # deployment.apply()
+    deployment.apply()
     
-    start_pipeline()
+    # start_pipeline()
